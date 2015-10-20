@@ -2,12 +2,15 @@ package com.andydennie.countrypicker;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
+import android.support.v4.graphics.drawable.DrawableCompat;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Base64;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,7 +24,6 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Currency;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -39,66 +41,6 @@ public class CountryPicker extends DialogFragment implements
 
     // countries that matched user query
     private List<Country> selectedCountriesList;
-
-
-    public void setListener(CountryPickerListener listener) {
-        this.listener = listener;
-    }
-
-    public EditText getSearchEditText() {
-        return searchEditText;
-    }
-
-    public ListView getCountryListView() {
-        return countryListView;
-    }
-
-
-    private List<Country> getAllCountries() {
-        if (allCountriesList == null) {
-            try {
-                allCountriesList = new ArrayList<>();
-
-                // Read from local file
-                String allCountriesString = readFileAsString(getActivity());
-                Log.d("countrypicker", "country: " + allCountriesString);
-                JSONObject jsonObject = new JSONObject(allCountriesString);
-                Iterator<?> keys = jsonObject.keys();
-
-                // Add the data to all countries list
-                while (keys.hasNext()) {
-                    String key = (String) keys.next();
-                    Country country = new Country();
-                    country.setCode(key);
-                    country.setName(jsonObject.getString(key));
-                    allCountriesList.add(country);
-                }
-
-                // Sort the all countries list based on country name
-                Collections.sort(allCountriesList, this);
-
-                // Initialize selected countries with all countries
-                selectedCountriesList = new ArrayList<>();
-                selectedCountriesList.addAll(allCountriesList);
-
-                // Return
-                return allCountriesList;
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        return null;
-    }
-
-    private static String readFileAsString(Context context)
-            throws java.io.IOException {
-        // R.string.countries is a json string which is Base64 encoded to avoid
-        // special characters in XML. It's Base64 decoded here to get original json.
-        String base64 = context.getResources().getString(R.string.countries);
-        byte[] data = Base64.decode(base64, Base64.DEFAULT);
-        return new String(data, "UTF-8");
-    }
 
     /**
      * To support show as dialog
@@ -122,6 +64,15 @@ public class CountryPicker extends DialogFragment implements
                              Bundle savedInstanceState) {
         // Inflate view
         View view = inflater.inflate(R.layout.country_picker, null);
+
+        EditText search = (EditText) (view.findViewById(R.id.country_picker_search));
+
+        // tint the search icon if the theme specifies an accent color
+        final TypedValue value = new TypedValue();
+        if (getContext().getTheme().resolveAttribute(R.attr.colorAccent, value, true)) {
+            Drawable searchIcon = search.getCompoundDrawables()[0];
+            DrawableCompat.setTint(searchIcon, value.data);
+        }
 
         // Get countries from the json
         getAllCountries();
@@ -179,6 +130,74 @@ public class CountryPicker extends DialogFragment implements
         return view;
     }
 
+    public void setListener(CountryPickerListener listener) {
+        this.listener = listener;
+    }
+
+    public EditText getSearchEditText() {
+        return searchEditText;
+    }
+
+    public ListView getCountryListView() {
+        return countryListView;
+    }
+
+    /**
+     * Support sorting the countries list
+     */
+    @Override
+    public int compare(Country lhs, Country rhs) {
+        return lhs.getName().compareTo(rhs.getName());
+    }
+
+
+    private List<Country> getAllCountries() {
+        if (allCountriesList == null) {
+            try {
+                allCountriesList = new ArrayList<>();
+
+                // Read from local file
+                String allCountriesString = readFileAsString(getActivity());
+                Log.d("countrypicker", "country: " + allCountriesString);
+                JSONObject jsonObject = new JSONObject(allCountriesString);
+                Iterator<?> keys = jsonObject.keys();
+
+                // Add the data to all countries list
+                while (keys.hasNext()) {
+                    String key = (String) keys.next();
+                    Country country = new Country();
+                    country.setCode(key);
+                    country.setName(jsonObject.getString(key));
+                    allCountriesList.add(country);
+                }
+
+                // Sort the all countries list based on country name
+                Collections.sort(allCountriesList, this);
+
+                // Initialize selected countries with all countries
+                selectedCountriesList = new ArrayList<>();
+                selectedCountriesList.addAll(allCountriesList);
+
+                // Return
+                return allCountriesList;
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        return null;
+    }
+
+    private String readFileAsString(Context context)
+            throws java.io.IOException {
+        // R.string.countries is a json string which is Base64 encoded to avoid
+        // special characters in XML. It's Base64 decoded here to get original json.
+        String base64 = context.getResources().getString(R.string.countries);
+        byte[] data = Base64.decode(base64, Base64.DEFAULT);
+        return new String(data, "UTF-8");
+    }
+
+
     @SuppressLint("DefaultLocale")
     private void search(String text) {
         selectedCountriesList.clear();
@@ -193,12 +212,9 @@ public class CountryPicker extends DialogFragment implements
         adapter.notifyDataSetChanged();
     }
 
-    /**
-     * Support sorting the countries list
-     */
-    @Override
-    public int compare(Country lhs, Country rhs) {
-        return lhs.getName().compareTo(rhs.getName());
+    private int getThemeAccentColor() {
+        final TypedValue value = new TypedValue();
+        boolean found = getContext().getTheme().resolveAttribute(R.attr.colorAccent, value, true);
+        return found ? value.data : -1;
     }
-
 }
