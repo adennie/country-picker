@@ -1,1 +1,3 @@
-# country-picker
+# android-country-picker
+
+License: see LICENSE
