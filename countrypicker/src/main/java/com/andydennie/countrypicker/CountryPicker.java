@@ -4,8 +4,8 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.graphics.drawable.DrawableCompat;
+import android.support.v7.app.AppCompatDialogFragment;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Base64;
@@ -28,16 +28,15 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 
-public class CountryPicker extends DialogFragment implements
-        Comparator<Country> {
+public class CountryPicker extends AppCompatDialogFragment {
 
     private EditText searchEditText;
     private ListView countryListView;
     private CountryListAdapter adapter;
     private CountryPickerListener listener;
-
-    // all countries, sorted by country name
-    private List<Country> allCountriesList;
+    private Country preselectedCountry;
+    private List<Country> allCountriesByName;
+    private CountryNameComparator nameComparator = new CountryNameComparator();
 
     // countries that matched user query
     private List<Country> selectedCountriesList;
@@ -62,20 +61,21 @@ public class CountryPicker extends DialogFragment implements
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+
+        // Get countries from the json
+        loadCountries();
+
         // Inflate view
         View view = inflater.inflate(R.layout.country_picker, null);
 
         EditText search = (EditText) (view.findViewById(R.id.country_picker_search));
 
-        // tint the search icon if the theme specifies an accent color
+        // tint the search icon if the theme specifies colorControlNormal
         final TypedValue value = new TypedValue();
-        if (getContext().getTheme().resolveAttribute(R.attr.colorAccent, value, true)) {
+        if (getContext().getTheme().resolveAttribute(R.attr.colorControlNormal, value, true)) {
             Drawable searchIcon = search.getCompoundDrawables()[0];
             DrawableCompat.setTint(searchIcon, value.data);
         }
-
-        // Get countries from the json
-        getAllCountries();
 
         // Set dialog title if show as dialog
         Bundle args = getArguments();
@@ -94,6 +94,9 @@ public class CountryPicker extends DialogFragment implements
         adapter = new CountryListAdapter(getActivity(), selectedCountriesList);
         countryListView.setAdapter(adapter);
 
+        // if a preselected country was specified, select it
+        preselectCountry();
+
         // Inform listener
         countryListView.setOnItemClickListener(new OnItemClickListener() {
 
@@ -102,8 +105,7 @@ public class CountryPicker extends DialogFragment implements
                                     int position, long id) {
                 if (listener != null) {
                     Country country = selectedCountriesList.get(position);
-                    listener.onSelectCountry(country.getName(),
-                            country.getCode());
+                    listener.onCountrySelected(country);
                 }
             }
         });
@@ -143,50 +145,44 @@ public class CountryPicker extends DialogFragment implements
     }
 
     /**
-     * Support sorting the countries list
+     * Specify a country to be preselected in the list.  The argument must have either a
+     * non-null code or name; either is sufficient.
+     *
+     * @param country to preselect
      */
-    @Override
-    public int compare(Country lhs, Country rhs) {
-        return lhs.getName().compareTo(rhs.getName());
+    public void setPreselectedCountry(Country country) {
+        preselectedCountry = country;
     }
 
+    private void loadCountries() {
+        try {
+            allCountriesByName = new ArrayList<>();
 
-    private List<Country> getAllCountries() {
-        if (allCountriesList == null) {
-            try {
-                allCountriesList = new ArrayList<>();
+            // Read from local file
+            String allCountriesString = readFileAsString(getActivity());
+            Log.d("countrypicker", "country: " + allCountriesString);
+            JSONObject jsonObject = new JSONObject(allCountriesString);
+            Iterator<?> keys = jsonObject.keys();
 
-                // Read from local file
-                String allCountriesString = readFileAsString(getActivity());
-                Log.d("countrypicker", "country: " + allCountriesString);
-                JSONObject jsonObject = new JSONObject(allCountriesString);
-                Iterator<?> keys = jsonObject.keys();
-
-                // Add the data to all countries list
-                while (keys.hasNext()) {
-                    String key = (String) keys.next();
-                    Country country = new Country();
-                    country.setCode(key);
-                    country.setName(jsonObject.getString(key));
-                    allCountriesList.add(country);
-                }
-
-                // Sort the all countries list based on country name
-                Collections.sort(allCountriesList, this);
-
-                // Initialize selected countries with all countries
-                selectedCountriesList = new ArrayList<>();
-                selectedCountriesList.addAll(allCountriesList);
-
-                // Return
-                return allCountriesList;
-
-            } catch (Exception e) {
-                e.printStackTrace();
+            // Add the data to all countries list
+            while (keys.hasNext()) {
+                String key = (String) keys.next();
+                Country country = new Country(key, jsonObject.getString(key));
+                allCountriesByName.add(country);
             }
+
+            // Sort the lists
+            Collections.sort(allCountriesByName, nameComparator);
+
+            // Initialize selected countries with all countries
+            selectedCountriesList = new ArrayList<>();
+            selectedCountriesList.addAll(allCountriesByName);
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        return null;
     }
+
 
     private String readFileAsString(Context context)
             throws java.io.IOException {
@@ -197,12 +193,30 @@ public class CountryPicker extends DialogFragment implements
         return new String(data, "UTF-8");
     }
 
+    private void preselectCountry() {
+        if (preselectedCountry != null) {
+            if (preselectedCountry.getName() != null) {
+                countryListView.setSelection(
+                        Collections.binarySearch(allCountriesByName, preselectedCountry, nameComparator));
+            } else if (preselectedCountry.getCode() != null) {
+                // brute force, but still fast enough to not matter
+                int pos = 0;
+                for (Country country : allCountriesByName) {
+                    if (country.getCode().equals(preselectedCountry.getCode())) {
+                        countryListView.setSelection(pos);
+                        break;
+                    }
+                    pos++;
+                }
+            }
+        }
+    }
 
     @SuppressLint("DefaultLocale")
     private void search(String text) {
         selectedCountriesList.clear();
 
-        for (Country country : allCountriesList) {
+        for (Country country : allCountriesByName) {
             if (country.getName().toLowerCase(Locale.ENGLISH)
                     .contains(text.toLowerCase())) {
                 selectedCountriesList.add(country);
@@ -212,9 +226,19 @@ public class CountryPicker extends DialogFragment implements
         adapter.notifyDataSetChanged();
     }
 
-    private int getThemeAccentColor() {
-        final TypedValue value = new TypedValue();
-        boolean found = getContext().getTheme().resolveAttribute(R.attr.colorAccent, value, true);
-        return found ? value.data : -1;
+    private static class CountryNameComparator implements Comparator<Country> {
+
+        @Override
+        public int compare(Country lhs, Country rhs) {
+            return lhs.getName().compareTo(rhs.getName());
+        }
+    }
+
+    private static class CountryCodeComparator implements Comparator<Country> {
+
+        @Override
+        public int compare(Country lhs, Country rhs) {
+            return lhs.getCode().compareTo(rhs.getCode());
+        }
     }
 }

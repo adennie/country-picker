@@ -5,5 +5,5 @@ package com.andydennie.countrypicker;
  *
  */
 public interface CountryPickerListener {
-	void onSelectCountry(String name, String code);
+	void onCountrySelected(Country country);
 }
