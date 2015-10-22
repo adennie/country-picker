@@ -9,7 +9,6 @@ import android.support.v7.app.AppCompatDialogFragment;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Base64;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -68,7 +67,7 @@ public class CountryPicker extends AppCompatDialogFragment {
         // Inflate view
         View view = inflater.inflate(R.layout.country_picker, null);
 
-        EditText search = (EditText) (view.findViewById(R.id.country_picker_search));
+        EditText search = (EditText) (view.findViewById(R.id.countryPickerSearch));
 
         // tint the search icon if the theme specifies colorControlNormal
         final TypedValue value = new TypedValue();
@@ -85,10 +84,8 @@ public class CountryPicker extends AppCompatDialogFragment {
         }
 
         // Get view components
-        searchEditText = (EditText) view
-                .findViewById(R.id.country_picker_search);
-        countryListView = (ListView) view
-                .findViewById(R.id.country_picker_listview);
+        searchEditText = (EditText) view.findViewById(R.id.countryPickerSearch);
+        countryListView = (ListView) view.findViewById(R.id.countryPickerListview);
 
         // Set adapter
         adapter = new CountryListAdapter(getActivity(), selectedCountriesList);
@@ -114,13 +111,11 @@ public class CountryPicker extends AppCompatDialogFragment {
         searchEditText.addTextChangedListener(new TextWatcher() {
 
             @Override
-            public void onTextChanged(CharSequence s, int start, int before,
-                                      int count) {
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
             }
 
             @Override
-            public void beforeTextChanged(CharSequence s, int start, int count,
-                                          int after) {
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
             }
 
             @Override
@@ -134,14 +129,6 @@ public class CountryPicker extends AppCompatDialogFragment {
 
     public void setListener(CountryPickerListener listener) {
         this.listener = listener;
-    }
-
-    public EditText getSearchEditText() {
-        return searchEditText;
-    }
-
-    public ListView getCountryListView() {
-        return countryListView;
     }
 
     /**
@@ -158,9 +145,8 @@ public class CountryPicker extends AppCompatDialogFragment {
         try {
             allCountriesByName = new ArrayList<>();
 
-            // Read from local file
-            String allCountriesString = readFileAsString(getActivity());
-            Log.d("countrypicker", "country: " + allCountriesString);
+            // Parse resource string containing country data in JSON format
+            String allCountriesString = getCountriesString();
             JSONObject jsonObject = new JSONObject(allCountriesString);
             Iterator<?> keys = jsonObject.keys();
 
@@ -184,11 +170,11 @@ public class CountryPicker extends AppCompatDialogFragment {
     }
 
 
-    private String readFileAsString(Context context)
+    private String getCountriesString()
             throws java.io.IOException {
         // R.string.countries is a json string which is Base64 encoded to avoid
         // special characters in XML. It's Base64 decoded here to get original json.
-        String base64 = context.getResources().getString(R.string.countries);
+        String base64 = getActivity().getResources().getString(R.string.countries);
         byte[] data = Base64.decode(base64, Base64.DEFAULT);
         return new String(data, "UTF-8");
     }
@@ -217,8 +203,7 @@ public class CountryPicker extends AppCompatDialogFragment {
         selectedCountriesList.clear();
 
         for (Country country : allCountriesByName) {
-            if (country.getName().toLowerCase(Locale.ENGLISH)
-                    .contains(text.toLowerCase())) {
+            if (country.getName().toLowerCase(Locale.ENGLISH).contains(text.toLowerCase())) {
                 selectedCountriesList.add(country);
             }
         }
@@ -231,14 +216,6 @@ public class CountryPicker extends AppCompatDialogFragment {
         @Override
         public int compare(Country lhs, Country rhs) {
             return lhs.getName().compareTo(rhs.getName());
-        }
-    }
-
-    private static class CountryCodeComparator implements Comparator<Country> {
-
-        @Override
-        public int compare(Country lhs, Country rhs) {
-            return lhs.getCode().compareTo(rhs.getCode());
         }
     }
 }

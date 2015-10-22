@@ -5,7 +5,7 @@
     android:orientation="vertical" >
 
     <EditText
-        android:id="@+id/country_picker_search"
+        android:id="@+id/countryPickerSearch"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_margin="8dp"
@@ -13,7 +13,7 @@
         android:drawableLeft="@drawable/search_icon" />
 
     <ListView
-        android:id="@+id/country_picker_listview"
+        android:id="@+id/countryPickerListview"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"

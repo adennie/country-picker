@@ -25,4 +25,8 @@ public class Country {
 		this.name = name;
 	}
 
+	public boolean hasAdministrativeDivisions() {
+        return code.equals("US");
+    }
+
 }
